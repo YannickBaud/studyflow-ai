@@ -5,7 +5,7 @@ import google.generativeai as genai
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     # On utilise la version Pro pour laquelle tu as un abonnement
-    model = genai.GenerativeModel('gemini-3.1-pro')
+    model = genai.GenerativeModel('gemini-1.5-pro-002')
 else:
     st.error("❌ La clé API n'est pas trouvée dans les Secrets. Vérifie l'étape précédente !")
 
