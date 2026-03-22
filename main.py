@@ -1,11 +1,10 @@
 import streamlit as st
 import google.generativeai as genai
-import pypdf2
+import PyPDF2
 
 # Configuration avec ta clé secrète
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Utilisation du modèle Flash (le plus compatible et rapide)
     model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     st.error("Clé API manquante dans les Secrets")
@@ -19,8 +18,8 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Envoie ton cours (PDF)", type="pdf")
 
 if uploaded_file:
-    # On extrait le texte du PDF
-    reader = pypdf2.PdfReader(uploaded_file)
+    # On extrait le texte du PDF avec les bonnes MAJUSCULES !
+    reader = PyPDF2.PdfReader(uploaded_file)
     content = ""
     for page in reader.pages:
         content += page.extract_text()
