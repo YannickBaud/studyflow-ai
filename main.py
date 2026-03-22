@@ -1,34 +1,43 @@
 import streamlit as st
 import google.generativeai as genai
+import pypdf2
 
-# On récupère ta clé secrète configurée dans les Secrets
+# Configuration avec ta clé secrète
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # On utilise la version Pro pour laquelle tu as un abonnement
-    model = genai.GenerativeModel('gemini-1.5-pro-002')
+    # Utilisation du modèle Flash (le plus compatible et rapide)
+    model = genai.GenerativeModel('gemini-1.5-flash')
 else:
-    st.error("❌ La clé API n'est pas trouvée dans les Secrets. Vérifie l'étape précédente !")
+    st.error("Clé API manquante dans les Secrets")
 
 st.set_page_config(page_title="StudyFlow.ai", page_icon="🚀")
-
 st.title("🚀 StudyFlow.ai")
-st.markdown("---")
 
-st.subheader("🤖 Ton assistant d'étude personnel")
-st.write("Pose-moi une question sur tes cours ou demande-moi un plan de révision.")
+# Barre latérale pour l'envoi de fichiers
+with st.sidebar:
+    st.header("📚 Ta Bibliothèque")
+    uploaded_file = st.file_uploader("Envoie ton cours (PDF)", type="pdf")
 
-# Zone de saisie
-user_input = st.text_input("Ta question :", placeholder="Ex: Explique-moi le théorème de Pythagore simplement...")
-
-if user_input:
-    with st.spinner("L'IA réfléchit..."):
-        try:
-            # L'IA génère la réponse
-            response = model.generate_content(user_input)
-            st.markdown("### 📝 Ma réponse :")
+if uploaded_file:
+    # On extrait le texte du PDF
+    reader = pypdf2.PdfReader(uploaded_file)
+    content = ""
+    for page in reader.pages:
+        content += page.extract_text()
+    
+    st.success("✅ Cours chargé !")
+    
+    # Bouton d'action
+    if st.button("📝 Créer une fiche de révision"):
+        with st.spinner("L'IA analyse ton cours..."):
+            prompt = f"Voici le contenu d'un cours : {content[:15000]}. Fais-moi une synthèse avec : Concepts clés, Formules et 3 questions d'entraînement."
+            response = model.generate_content(prompt)
             st.info(response.text)
-        except Exception as e:
-            st.error(f"Oups, une erreur : {e}")
 
+# Chat classique pour poser des questions
 st.markdown("---")
-st.caption("StudyFlow.ai v0.1 - Propulsé par Gemini 1.5 Pro")
+user_q = st.text_input("Pose une question sur ton cours :")
+if user_q:
+    with st.spinner("Réflexion..."):
+        resp = model.generate_content(user_q)
+        st.write(resp.text)
