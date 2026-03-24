@@ -2,18 +2,32 @@ import streamlit as st
 import google.generativeai as genai
 import PyPDF2
 
-# Configuration avec ta clé secrète
-if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # On utilise le modèle universel, impossible qu'il fasse une erreur 404
-    model = genai.GenerativeModel('gemini-pro')
-else:
-    st.error("Clé API manquante dans les Secrets")
-
 st.set_page_config(page_title="StudyFlow.ai", page_icon="🚀")
 st.title("🚀 StudyFlow.ai")
 
-# Barre latérale pour l'envoi de fichiers
+# 1. DÉTECTION AUTOMATIQUE DU MOTEUR IA
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    try:
+        # L'IA demande à Google : "Quels modèles j'ai le droit d'utiliser ?"
+        modeles_dispos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # On choisit le meilleur modèle disponible dans ta liste
+        modele_choisi = "gemini-1.5-flash" # Sécurité par défaut
+        for m in modeles_dispos:
+            if "1.5-flash" in m:
+                modele_choisi = m.replace('models/', '')
+                break
+        
+        model = genai.GenerativeModel(modele_choisi)
+        st.success(f"🔌 Connecté au moteur : {modele_choisi}")
+        
+    except Exception as e:
+        st.error(f"Impossible de lister les modèles : {e}")
+else:
+    st.error("Clé API manquante dans les Secrets")
+
+# 2. LA BIBLIOTHÈQUE (PDF)
 with st.sidebar:
     st.header("📚 Ta Bibliothèque")
     uploaded_file = st.file_uploader("Envoie ton cours (PDF)", type="pdf")
@@ -24,20 +38,18 @@ if uploaded_file:
     for page in reader.pages:
         content += page.extract_text()
     
-    st.success("✅ Cours chargé !")
+    st.success("✅ Cours chargé avec succès !")
     
-    # Bouton d'action
     if st.button("📝 Créer une fiche de révision"):
-        with st.spinner("L'IA lit ton cours... (ça peut prendre 10 secondes)"):
+        with st.spinner("L'IA lit ton cours..."):
             try:
-                # On limite le texte pour que l'IA ne s'étouffe pas
-                prompt = f"Voici le contenu d'un cours : {content[:15000]}. Fais-moi une synthèse avec : Concepts clés, Formules importantes et 3 questions d'entraînement."
+                prompt = f"Fais une fiche de révision avec Concepts clés, Formules et 3 questions sur ce cours : {content[:15000]}"
                 response = model.generate_content(prompt)
                 st.info(response.text)
             except Exception as e:
-                st.warning(f"Oups, l'IA a eu un petit hoquet : {e}")
+                st.warning(f"L'IA a eu un souci de génération : {e}")
 
-# Chat classique pour poser des questions
+# 3. LE CHAT
 st.markdown("---")
 user_q = st.text_input("Pose une question sur ton cours :")
 if user_q:
@@ -46,4 +58,4 @@ if user_q:
             resp = model.generate_content(user_q)
             st.write(resp.text)
         except Exception as e:
-            st.warning(f"Erreur de réseau : {e}")
+            st.warning(f"Erreur : {e}")
