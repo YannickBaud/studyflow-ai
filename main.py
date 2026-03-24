@@ -5,27 +5,36 @@ import PyPDF2
 st.set_page_config(page_title="StudyFlow.ai", page_icon="🚀")
 st.title("🚀 StudyFlow.ai")
 
-# 1. DÉTECTION AUTOMATIQUE DU MOTEUR IA
+# 1. DÉTECTION 100% AUTOMATIQUE DU MOTEUR
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     try:
-        # L'IA demande à Google : "Quels modèles j'ai le droit d'utiliser ?"
-        modeles_dispos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # On récupère la liste EXACTE des modèles autorisés par ta clé
+        modeles_dispos = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                modeles_dispos.append(m.name.replace('models/', ''))
         
-        # On choisit le meilleur modèle disponible dans ta liste
-        modele_choisi = "gemini-1.5-flash" # Sécurité par défaut
-        for m in modeles_dispos:
-            if "1.5-flash" in m:
-                modele_choisi = m.replace('models/', '')
-                break
-        
-        model = genai.GenerativeModel(modele_choisi)
-        st.success(f"🔌 Connecté au moteur : {modele_choisi}")
-        
+        if modeles_dispos:
+            # On cherche en priorité la génération 3 (2026)
+            modele_choisi = modeles_dispos[0] # Par défaut, on prend le premier qui marche
+            for m in modeles_dispos:
+                if "gemini-3" in m:
+                    modele_choisi = m
+                    break
+            
+            model = genai.GenerativeModel(modele_choisi)
+            st.success(f"🔌 Connecté au moteur Nouvelle Génération : {modele_choisi}")
+        else:
+            st.error("Aucun modèle génératif trouvé sur cette clé API.")
+            st.stop()
+            
     except Exception as e:
         st.error(f"Impossible de lister les modèles : {e}")
+        st.stop()
 else:
     st.error("Clé API manquante dans les Secrets")
+    st.stop()
 
 # 2. LA BIBLIOTHÈQUE (PDF)
 with st.sidebar:
@@ -41,7 +50,7 @@ if uploaded_file:
     st.success("✅ Cours chargé avec succès !")
     
     if st.button("📝 Créer une fiche de révision"):
-        with st.spinner("L'IA lit ton cours..."):
+        with st.spinner(f"Le modèle {modele_choisi} lit ton cours..."):
             try:
                 prompt = f"Fais une fiche de révision avec Concepts clés, Formules et 3 questions sur ce cours : {content[:15000]}"
                 response = model.generate_content(prompt)
